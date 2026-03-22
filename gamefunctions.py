@@ -2,9 +2,9 @@
 #Morgan Davis
 #2/22/26
 
-#This program is a project and utilizes the functions purchase_item() and new_random_monster().
+#This program is a project and utilizes the functions purchase_item, new_random_monster, print_welcome, and print_shop_menu.
 #The functions are called each three times to demonstrate different scenarios.
-#There are added docstrings to the beginning of each of the functions 
+#There are added docstrings to the beginning of each of the functions
 
 """This module contains different functions that are called to test multiple times.
 
@@ -13,8 +13,8 @@ It consists of purchase_item, new_random_monster, print_welcome, and print_shop_
     Typical usage examples:
 
     purchase_item(123, 1000, 3)
-    print_welcome("Mike", 20)""" 
-
+    print_welcome("Mike", 20)"""
+    
 import random
 
 def purchase_item(itemPrice, startingMoney, quantityToPurchase=1):
@@ -102,32 +102,36 @@ def print_shop_menu(item1Name, item1Price, item2Name, item2Price):
     print("\\----------------------/")
 
 
-#Calling the functions.
-print(purchase_item(123, 1000, 3))   
-print(purchase_item(123, 201, 3))    
-print(purchase_item(341, 2112))      
+def test_functions():
+    print(purchase_item(123, 1000, 3))   
+    print(purchase_item(123, 201, 3))    
+    print(purchase_item(341, 2112))      
 
 
-monster1 = new_random_monster()
-print(monster1)
+    monster1 = new_random_monster()
+    print(monster1)
 
-monster2 = new_random_monster()
-print(monster2)
+    monster2 = new_random_monster()
+    print(monster2)
 
-monster3 = new_random_monster()
-print(monster3)
+    monster3 = new_random_monster()
+    print(monster3)
 
-print(purchase_item(2.5, 10.75, 3))
-print(purchase_item(4.2, 18.9, 2))
-print(purchase_item(1.75, 6.5))
+    print(purchase_item(2.5, 10.75, 3))
+    print(purchase_item(4.2, 18.9, 2))
+    print(purchase_item(1.75, 6.5))
 
-print_welcome("Morgan", 20)
-print_welcome("Madison", 20)
-print_welcome("Mike", 20)
+    print_welcome("Morgan", 20)
+    print_welcome("Madison", 20)
+    print_welcome("Mike", 20)
 
-print_shop_menu("Water", 1.25, "Apples", 2.75)
-print_shop_menu("Milk", 3.49, "Eggs", 4.89)
-print_shop_menu("Flour", 5.55, "Yogurt", 6.35)
+    print_shop_menu("Water", 1.25, "Apples", 2.75)
+    print_shop_menu("Milk", 3.49, "Eggs", 4.89)
+    print_shop_menu("Flour", 5.55, "Yogurt", 6.35)
+
+if __name__ == "__main__":
+    test_functions()
+
 
 
 

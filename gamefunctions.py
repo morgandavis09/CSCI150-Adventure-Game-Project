@@ -6,6 +6,15 @@
 #The functions are called each three times to demonstrate different scenarios.
 #There are added docstrings to the beginning of each of the functions 
 
+"""This module contains different functions that are called to test multiple times.
+
+It uses the import random function.
+It consists of purchase_item, new_random_monster, print_welcome, and print_shop_menu.
+    Typical usage examples:
+
+    purchase_item(123, 1000, 3)
+    print_welcome("Mike", 20)""" 
+
 import random
 
 def purchase_item(itemPrice, startingMoney, quantityToPurchase=1):
@@ -62,22 +71,6 @@ def new_random_monster():
 
     return my_monster
 
-print(purchase_item(123, 1000, 3))   
-print(purchase_item(123, 201, 3))    
-print(purchase_item(341, 2112))      
-
-
-monster1 = new_random_monster()
-print(monster1)
-
-monster2 = new_random_monster()
-print(monster2)
-
-monster3 = new_random_monster()
-print(monster3)
-
-
-
 def print_welcome(name, width):
     """Prints a welcome message centered in the specified width.
     Parameters:
@@ -109,7 +102,20 @@ def print_shop_menu(item1Name, item1Price, item2Name, item2Price):
     print("\\----------------------/")
 
 
+#Calling the functions.
+print(purchase_item(123, 1000, 3))   
+print(purchase_item(123, 201, 3))    
+print(purchase_item(341, 2112))      
 
+
+monster1 = new_random_monster()
+print(monster1)
+
+monster2 = new_random_monster()
+print(monster2)
+
+monster3 = new_random_monster()
+print(monster3)
 
 print(purchase_item(2.5, 10.75, 3))
 print(purchase_item(4.2, 18.9, 2))

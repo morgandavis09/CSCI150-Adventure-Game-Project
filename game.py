@@ -1,12 +1,16 @@
 import gamefunctions
 import random
+import json
+import os
+
 
 state = {
     "player_name": "",
     "player_hp": 30,
-    "player_gold": 50,
+    "player_gold": 100,
     "player_inventory": []
 }
+
 
 shop_items = [
     {"name": "sword", "type": "weapon", "price": 15, "maxDurability": 10, "currentDurability": 10, "equipped": False},
@@ -15,40 +19,52 @@ shop_items = [
 
 
 def show_inventory():
+    """
+    """
     print("\nInventory:")
     if not state["player_inventory"]:
         print("Empty")
         return
+
     for item in state["player_inventory"]:
         status = "(equipped)" if item.get("equipped") else ""
         print(f"- {item['name']} {status}")
 
 
 def visit_shop():
+    """
+    """
     print("\nShop:")
     for i, item in enumerate(shop_items, 1):
         print(f"{i}) {item['name']} - {item['price']} gold")
     print("0) Exit")
 
-    choice = int(input("Choose item: "))
+    try:
+        choice = int(input("Choose item: "))
+    except ValueError:
+        return
+
     if choice == 0:
+        return
+
+    if choice < 1 or choice > len(shop_items):
         return
 
     item = shop_items[choice - 1]
 
-    purchased, leftover = gamefunctions.purchase_item(
-        item["price"], state["player_gold"], 1
-    )
-
-    if purchased > 0:
-        state["player_gold"] = leftover
-        state["player_inventory"].append(item.copy())
-        print(f"You bought {item['name']}")
-    else:
+    if state["player_gold"] < item["price"]:
         print("Not enough gold.")
+        return
+
+    state["player_gold"] -= item["price"]
+    state["player_inventory"].append(item.copy())
+
+    print(f"You bought {item['name']}")
 
 
 def equip_weapon():
+    """
+    """
     weapons = [i for i in state["player_inventory"] if i["type"] == "weapon"]
 
     if not weapons:
@@ -59,7 +75,13 @@ def equip_weapon():
     for i, item in enumerate(weapons, 1):
         print(f"{i}) {item['name']}")
 
-    choice = int(input("Choose weapon: ")) - 1
+    try:
+        choice = int(input("Choose weapon: ")) - 1
+    except ValueError:
+        return
+
+    if choice < 0 or choice >= len(weapons):
+        return
 
     for item in state["player_inventory"]:
         if item["type"] == "weapon":
@@ -68,40 +90,15 @@ def equip_weapon():
     weapons[choice]["equipped"] = True
     print(f"{weapons[choice]['name']} equipped.")
 
-def main():
-    """
-        Introduces each function briefly, with some user input."""
-    
-    name = input("What is your name?: ")
-    gamefunctions.print_welcome(name, 30)
-    
-    money = float(input("How much money are you shopping with?: "))
-    price = float(input("WHat is the item price?: "))
-    quantity = int(input("What is the quantity?: "))
-
-    purchased, leftover = gamefunctions.purchase_item(price, money, quantity)
-
-    print(f"You have ${leftover:.2f} left.")
-
-    print("\nLet's create a monster.")
-    monster = gamefunctions.new_random_monster()
-    print(monster)
-
-    choice = input("Do you want to see a shop menu? (yes/no): ")
-
-    if choice.lower() == "yes":
-        print("\nShop Menu:")
-        gamefunctions.print_shop_menu("Milk", 3.49, "Eggs", 4.89)
-
-
 
 def fight_monster(player_hp, player_gold):
     """Handles a simple combat loop with a random monster."""
     monster = gamefunctions.new_random_monster()
     print(f"\nA wild {monster['name']} appears!")
-    print(monster['description'])
+    print(monster["description"])
 
     special_items = [i for i in state["player_inventory"] if i["type"] == "special"]
+
     if special_items:
         use_item = input("Use special item to defeat monster? (yes/no): ")
         if use_item.lower() == "yes":
@@ -110,49 +107,102 @@ def fight_monster(player_hp, player_gold):
             player_gold += monster["money"]
             return player_hp, player_gold
 
-
     while player_hp > 0 and monster["health"] > 0:
         print(f"\nYour HP: {player_hp} | {monster['name']} HP: {monster['health']}")
         action = input("Choose an action: 1) Attack  2) Run: ")
+
         if action == "1":
             weapon = next((i for i in state["player_inventory"] if i.get("equipped")), None)
 
+            base_damage = random.randint(5, 12)
+
             if weapon:
-                damage = random.randint(5, 12) + 5
+                damage = base_damage + 5
+
+                if "currentDurability" in weapon:
+                    weapon["currentDurability"] -= 1
+                    print(f"{weapon['name']} increases your damage!")
+
+                    if weapon["currentDurability"] <= 0:
+                        print(f"{weapon['name']} broke!")
+                        state["player_inventory"].remove(weapon)
             else:
-                damage = random.randint(5, 12)
+                damage = base_damage
 
             monster["health"] -= damage
             player_hp -= monster["power"]
+
             print(f"You hit {monster['name']} for {damage} damage.")
             print(f"{monster['name']} hits you for {monster['power']} damage.")
+
         elif action == "2":
             print(f"You ran away from {monster['name']}.")
             break
-        else:
-            print("Invalid choice. Enter 1 or 2.")
 
     if monster["health"] <= 0:
         print(f"You defeated the {monster['name']} and earned {monster['money']} gold!")
         player_gold += monster["money"]
+
     if player_hp <= 0:
         print("You have been defeated!")
 
     return player_hp, player_gold
 
 
+
+def save_game(filename):
+    """Saves current game state to a file."""
+    with open(filename, "w") as file:
+        json.dump(state, file, indent=4)
+
+    print("Game saved successfully!")
+
+    
+def load_game(filename):
+    """Loads game state from a file."""
+    global state
+
+    if not os.path.exists(filename):
+        print("Save file not found.")
+        return False
+
+    with open(filename, "r") as file:
+        state = json.load(file)
+
+    print("Game loaded successfully!")
+    return True
+
+
+
 def main():
     """Runs the main game loop."""
-    name = input("What is your character's name? ")
-    gamefunctions.print_welcome(name, 40)
 
-    hp = 30
-    gold = 10
-    state["player_hp"] = hp
-    state["player_gold"] = gold
-    state["player_name"] = name
+    print("1) New Game")
+    print("2) Load Game")
 
+    choice = input("> ")
 
+    if choice == "2":
+        filename = input("Enter save file name: ")
+
+        success = load_game(filename)
+
+        if not success:
+            state["player_name"] = input("What is your character's name? ")
+            state["player_hp"] = 30
+            state["player_gold"] = 100
+            state["player_inventory"] = []
+    else:
+        state["player_name"] = input("What is your character's name? ")
+        state["player_hp"] = 30
+        state["player_gold"] = 100
+        state["player_inventory"] = []
+
+    hp = state["player_hp"]
+    gold = state["player_gold"]
+    name = state["player_name"]
+
+   
     while True:
         print(f"\nYou are in town. Current HP: {hp}, Gold: {gold}")
         print("1) Venture into the wilds (Fight a monster)")
@@ -160,8 +210,7 @@ def main():
         print("3) Visit shop")
         print("4) Equip weapon")
         print("5) Show inventory")
-        print("6) Quit")
-
+        print("6) Save and Quit")
 
         choice = input("Select an option (1-6): ")
 
@@ -169,7 +218,6 @@ def main():
             hp, gold = fight_monster(hp, gold)
             state["player_hp"] = hp
             state["player_gold"] = gold
-
 
         elif choice == "2":
             if gold >= 5:
@@ -191,16 +239,23 @@ def main():
             show_inventory()
 
         elif choice == "6":
+            filename = input("Enter save file name: ")
+            save_game(filename)
             print(f"Farewell, {name}. Thanks for playing!")
             break
 
         else:
             print("Invalid choice. Enter 1-6.")
+            
 
+def save_game(filename):
+    """Saves current game state to a file."""
+    with open(filename, "w") as file:
+        json.dump(state, file, indent=4)
 
+    print("Game saved successfully!")
 
 
 
 if __name__ == "__main__":
     main()
-    

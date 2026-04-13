@@ -71,6 +71,7 @@ def new_random_monster():
 
     return my_monster
 
+
 def print_welcome(name, width):
     """Prints a welcome message centered in the specified width.
     Parameters:

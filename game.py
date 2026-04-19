@@ -198,13 +198,11 @@ def main():
         state["player_gold"] = 100
         state["player_inventory"] = []
 
-    hp = state["player_hp"]
-    gold = state["player_gold"]
     name = state["player_name"]
 
    
     while True:
-        print(f"\nYou are in town. Current HP: {hp}, Gold: {gold}")
+        print(f"\nYou are in town. Current HP: {state['player_hp']}, Gold: {state['player_gold']}")
         print("1) Venture into the wilds (Fight a monster)")
         print("2) Rest (Restore 5 HP for 5 Gold)")
         print("3) Visit shop")
@@ -215,16 +213,16 @@ def main():
         choice = input("Select an option (1-6): ")
 
         if choice == "1":
-            hp, gold = fight_monster(hp, gold)
-            state["player_hp"] = hp
-            state["player_gold"] = gold
+            state["player_hp"], state["player_gold"] = fight_monster(
+                state["player_hp"],
+                state["player_gold"]
+            )
+
 
         elif choice == "2":
-            if gold >= 5:
-                hp += 5
-                gold -= 5
-                state["player_hp"] = hp
-                state["player_gold"] = gold
+            if state["player_gold"] >= 5:
+                state["player_hp"] += 5
+                state["player_gold"] -= 5
                 print("You rest and regain 5 HP.")
             else:
                 print("Not enough gold to rest.")

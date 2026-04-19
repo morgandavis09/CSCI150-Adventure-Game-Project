@@ -11,6 +11,12 @@ state = {
     "player_inventory": []
 }
 
+map_state = {
+    "player_pos": [0, 0],
+    "town_pos": [0, 0],
+    "monster_pos": [5, 5],
+    "in_town": True
+}
 
 shop_items = [
     {"name": "sword", "type": "weapon", "price": 15, "maxDurability": 10, "currentDurability": 10, "equipped": False},
@@ -104,8 +110,8 @@ def fight_monster(player_hp, player_gold):
         if use_item.lower() == "yes":
             print("Monster defeated instantly!")
             state["player_inventory"].remove(special_items[0])
-            player_gold += monster["money"]
-            return player_hp, player_gold
+            state["player_gold"] += monster["money"]
+            return player_hp, state["player_gold"]
 
     while player_hp > 0 and monster["health"] > 0:
         print(f"\nYour HP: {player_hp} | {monster['name']} HP: {monster['health']}")
@@ -147,6 +153,69 @@ def fight_monster(player_hp, player_gold):
         print("You have been defeated!")
 
     return player_hp, player_gold
+
+
+def move_player(game_state, direction):
+    x, y = game_state["player_pos"]
+
+    if direction == "up":
+        y -= 1
+    elif direction == "down":
+        y += 1
+    elif direction == "left":
+        x -= 1
+    elif direction == "right":
+        x += 1
+
+    x = max(0, min(9, x))
+    y = max(0, min(9, y))
+
+    game_state["player_pos"] = [x, y]
+
+    if game_state["player_pos"] == game_state["town_pos"]:
+        return "returned_to_town"
+    elif game_state["player_pos"] == game_state["monster_pos"]:
+        return "monster_encounter"
+    else:
+        return "moved"
+
+def run_map(game_state):
+    while True:
+        for y in range(10):
+            row = ""
+            for x in range(10):
+                if [x, y] == game_state["player_pos"]:
+                    row += "P"
+                elif [x, y] == game_state["town_pos"]:
+                    row += "T"
+                elif [x, y] == game_state["monster_pos"]:
+                    row += "M"
+                else:
+                    row += "."
+            print(row)
+
+        move = input("Move (w/a/s/d, q to quit): ")
+
+        if move == "q":
+            return "town"
+
+        direction = None
+        if move == "w":
+            direction = "up"
+        elif move == "s":
+            direction = "down"
+        elif move == "a":
+            direction = "left"
+        elif move == "d":
+            direction = "right"
+
+        if direction:
+            result = move_player(game_state, direction)
+
+            if result == "returned_to_town":
+                return "town"
+            elif result == "monster_encounter":
+                return "monster"
 
 
 
@@ -213,10 +282,23 @@ def main():
         choice = input("Select an option (1-6): ")
 
         if choice == "1":
-            state["player_hp"], state["player_gold"] = fight_monster(
-                state["player_hp"],
-                state["player_gold"]
-            )
+            result = run_map(map_state)
+
+            if result == "monster":
+                state["player_hp"], state["player_gold"] = fight_monster(
+                    state["player_hp"],
+                    state["player_gold"]
+                )
+
+                while True:
+                    pos = [random.randint(0, 9), random.randint(0, 9)]
+                    if pos != map_state["player_pos"] and pos != map_state["town_pos"]:
+                        map_state["monster_pos"] = pos
+                        break
+
+
+            elif result == "town":
+               print("You returned to town.")
 
 
         elif choice == "2":
@@ -246,12 +328,6 @@ def main():
             print("Invalid choice. Enter 1-6.")
             
 
-def save_game(filename):
-    """Saves current game state to a file."""
-    with open(filename, "w") as file:
-        json.dump(state, file, indent=4)
-
-    print("Game saved successfully!")
 
 
 

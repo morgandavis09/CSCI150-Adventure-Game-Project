@@ -2,6 +2,7 @@ import gamefunctions
 import random
 import json
 import os
+from WanderingMonster import WanderingMonster
 
 
 state = {
@@ -11,10 +12,11 @@ state = {
     "player_inventory": []
 }
 
+state["monsters"] = []
+
 map_state = {
     "player_pos": [0, 0],
     "town_pos": [0, 0],
-    "monster_pos": [5, 5],
     "in_town": True
 }
 
@@ -174,10 +176,8 @@ def move_player(game_state, direction):
 
     if game_state["player_pos"] == game_state["town_pos"]:
         return "returned_to_town"
-    elif game_state["player_pos"] == game_state["monster_pos"]:
-        return "monster_encounter"
-    else:
-        return "moved"
+    
+    return "moved"
 
 def run_map(game_state):
     while True:
@@ -188,7 +188,7 @@ def run_map(game_state):
                     row += "P"
                 elif [x, y] == game_state["town_pos"]:
                     row += "T"
-                elif [x, y] == game_state["monster_pos"]:
+                elif any(m.x == x and m.y == y for m in state["monsters"]):
                     row += "M"
                 else:
                     row += "."
@@ -212,31 +212,91 @@ def run_map(game_state):
         if direction:
             result = move_player(game_state, direction)
 
+
+            if result == "moved":
+                 player_pos = tuple(game_state["player_pos"])
+
+                 for monster in state["monsters"]:
+                    if (monster.x, monster.y) == player_pos:
+                        print(f"\nYou encountered a {monster.monster_type}!")
+
+                        state["player_hp"] -= 5
+                        monster.hp -= 10
+
+                        if monster.hp <= 0:
+                            print("Monster defeated!")
+                            state["monsters"].remove(monster)
+                        return
+                
+                 occupied = [tuple(game_state["player_pos"])]
+
+                 for m in state["monsters"]:
+                    occupied.append((m.x, m.y))
+
+                 for monster in state["monsters"]:
+                    monster.move(
+                        occupied,
+                        [tuple(game_state["town_pos"])],
+                        10,
+                        10
+                    )
+
+                 player_pos = tuple(game_state["player_pos"])
+
+                 for monster in state["monsters"]:
+                    if (monster.x, monster.y) == player_pos:
+                        print(f"\nYou encountered a {monster.monster_type}!")
+
+                        state["player_hp"] -= 5
+
+                        monster.hp -= 10
+
+                        if monster.hp <= 0:
+                            print("Monster defeated!")
+                            state["monsters"].remove(monster)
+
+                        break
+
             if result == "returned_to_town":
                 return "town"
-            elif result == "monster_encounter":
-                return "monster"
-
-
 
 def save_game(filename):
     """Saves current game state to a file."""
+
+    save_data = {
+        "state": {
+            "player_name": state["player_name"],
+            "player_hp": state["player_hp"],
+            "player_gold": state["player_gold"],
+            "player_inventory": state["player_inventory"]
+        },
+        "map_state": map_state,
+        "monsters": [m.to_dict() for m in state["monsters"]]
+    }
+
     with open(filename, "w") as file:
-        json.dump(state, file, indent=4)
+        json.dump(save_data, file, indent=4)
 
     print("Game saved successfully!")
 
     
 def load_game(filename):
     """Loads game state from a file."""
-    global state
+    global state, map_state
 
     if not os.path.exists(filename):
         print("Save file not found.")
         return False
 
     with open(filename, "r") as file:
-        state = json.load(file)
+        data = json.load(file)
+
+    state.update(data["state"])
+    map_state.update(data["map_state"])
+
+    state["monsters"] = [
+        WanderingMonster.from_dict(d) for d in data["monsters"]
+    ]
 
     print("Game loaded successfully!")
     return True
@@ -266,6 +326,21 @@ def main():
         state["player_hp"] = 30
         state["player_gold"] = 100
         state["player_inventory"] = []
+        
+
+    if "monsters" not in state:
+        state["monsters"] = []
+
+    if not state.get("monsters"):
+        state["monsters"] = [
+            WanderingMonster.random_spawn(
+                occupied=[tuple(map_state["player_pos"]), tuple(map_state["town_pos"])],
+                forbidden=[],
+                grid_w=10,
+                grid_h=10
+            )
+        ]
+
 
     name = state["player_name"]
 
@@ -284,21 +359,40 @@ def main():
         if choice == "1":
             result = run_map(map_state)
 
-            if result == "monster":
-                state["player_hp"], state["player_gold"] = fight_monster(
-                    state["player_hp"],
-                    state["player_gold"]
-                )
 
-                while True:
-                    pos = [random.randint(0, 9), random.randint(0, 9)]
-                    if pos != map_state["player_pos"] and pos != map_state["town_pos"]:
-                        map_state["monster_pos"] = pos
-                        break
+            player_pos = tuple(map_state["player_pos"])
 
+            for monster in state["monsters"]:
+                if (monster.x, monster.y) == player_pos:
+                    print(f"\nYou encountered a {monster.monster_type}!")
 
-            elif result == "town":
-               print("You returned to town.")
+                    state["player_hp"] -= 5
+                    if state["player_hp"] <= 0:
+                        print("You were defeated by the monster!")
+                        return
+
+                    monster.hp -= 10
+
+                    if monster.hp <= 0:
+                        print("Monster defeated!")
+                        state["monsters"].remove(monster)
+
+                    break
+
+                
+            if len(state["monsters"]) == 0:
+                for _ in range(2):
+                    state["monsters"].append(
+                        WanderingMonster.random_spawn(
+                            occupied=[tuple(map_state["player_pos"]), tuple(map_state["town_pos"])],
+                            forbidden=[],
+                            grid_w=10,
+                            grid_h=10
+                        )
+                    )
+
+            if result == "town":
+                print("You returned to town.")
 
 
         elif choice == "2":

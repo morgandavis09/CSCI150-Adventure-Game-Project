@@ -17,7 +17,9 @@ state["monsters"] = []
 map_state = {
     "player_pos": [0, 0],
     "town_pos": [0, 0],
-    "in_town": True
+    "in_town": True,
+    "ruins": [(3, 3), (3, 4), (4, 4), (6, 7)],
+    "shrines": [(1, 6), (8, 2)]
 }
 
 shop_items = [
@@ -99,11 +101,10 @@ def equip_weapon():
     print(f"{weapons[choice]['name']} equipped.")
 
 
-def fight_monster(player_hp, player_gold):
+def fight_monster(player_hp, player_gold, monster):
     """Handles a simple combat loop with a random monster."""
-    monster = gamefunctions.new_random_monster()
-    print(f"\nA wild {monster['name']} appears!")
-    print(monster["description"])
+
+    print(f"\nA wild {monster.monster_type} appears!")
 
     special_items = [i for i in state["player_inventory"] if i["type"] == "special"]
 
@@ -112,67 +113,68 @@ def fight_monster(player_hp, player_gold):
         if use_item.lower() == "yes":
             print("Monster defeated instantly!")
             state["player_inventory"].remove(special_items[0])
-            state["player_gold"] += monster["money"]
+            state["player_gold"] += monster.money
             return player_hp, state["player_gold"]
 
-    while player_hp > 0 and monster["health"] > 0:
-        print(f"\nYour HP: {player_hp} | {monster['name']} HP: {monster['health']}")
-        action = input("Choose an action: 1) Attack  2) Run: ")
+    while player_hp > 0 and monster.hp > 0:
+        print(f"\nYour HP: {player_hp} | {monster.monster_type} HP: {monster.hp}")
+        action = input("Choose an action: 1) Quick Attack  2) Strong Attack  3) Run: ")
 
         if action == "1":
-            weapon = next((i for i in state["player_inventory"] if i.get("equipped")), None)
+            base_damage = random.randint(3, 8)
+            damage = base_damage
 
-            base_damage = random.randint(5, 12)
+            monster.hp -= damage
+            player_hp -= monster.power // 2
 
-            if weapon:
-                damage = base_damage + 5
-
-                if "currentDurability" in weapon:
-                    weapon["currentDurability"] -= 1
-                    print(f"{weapon['name']} increases your damage!")
-
-                    if weapon["currentDurability"] <= 0:
-                        print(f"{weapon['name']} broke!")
-                        state["player_inventory"].remove(weapon)
-            else:
-                damage = base_damage
-
-            monster["health"] -= damage
-            player_hp -= monster["power"]
-
-            print(f"You hit {monster['name']} for {damage} damage.")
-            print(f"{monster['name']} hits you for {monster['power']} damage.")
+            print(f"You quickly strike {monster.monster_type} for {damage} damage.")
+            print(f"{monster.monster_type} hits you lightly for {monster.power // 2} damage.")
 
         elif action == "2":
-            print(f"You ran away from {monster['name']}.")
+            base_damage = random.randint(8, 15)
+            damage = base_damage
+
+            monster.hp -= damage
+            player_hp -= monster.power + 3
+
+            print(f"You unleash a strong attack on {monster.monster_type} for {damage} damage!")
+            print(f"{monster.monster_type} counters hard for {monster.power + 3} damage.")
+
+        elif action == "3":
+            print(f"You ran away from {monster.monster_type}.")
             break
 
-    if monster["health"] <= 0:
-        print(f"You defeated the {monster['name']} and earned {monster['money']} gold!")
-        player_gold += monster["money"]
-
-    if player_hp <= 0:
-        print("You have been defeated!")
+    if monster.hp <= 0:
+        print(f"You defeated the {monster.monster_type} and earned {monster.money} gold!")
+        player_gold += monster.money
 
     return player_hp, player_gold
 
 
 def move_player(game_state, direction):
     x, y = game_state["player_pos"]
+    new_x, new_y = x, y
 
     if direction == "up":
-        y -= 1
+        new_y -= 1
     elif direction == "down":
-        y += 1
+        new_y += 1
     elif direction == "left":
-        x -= 1
+        new_x -= 1
     elif direction == "right":
-        x += 1
+        new_x += 1
+
+    new_x = max(0, min(9, new_x))
+    new_y = max(0, min(9, new_y))
+
+    if (new_x, new_y) in map_state.get("ruins", []):
+        print("The ruins block your path!")
+        return "moved"
 
     x = max(0, min(9, x))
     y = max(0, min(9, y))
 
-    game_state["player_pos"] = [x, y]
+    game_state["player_pos"] = [new_x, new_y]
 
     if game_state["player_pos"] == game_state["town_pos"]:
         return "returned_to_town"
@@ -181,17 +183,32 @@ def move_player(game_state, direction):
 
 def run_map(game_state):
     while True:
+        visible_monsters = {(m.x, m.y) for m in state["monsters"]}
+        
         for y in range(10):
             row = ""
             for x in range(10):
+
+                pos = (x, y)
+
                 if [x, y] == game_state["player_pos"]:
                     row += "P"
+
                 elif [x, y] == game_state["town_pos"]:
                     row += "T"
-                elif any(m.x == x and m.y == y for m in state["monsters"]):
+
+                elif (x, y) in visible_monsters:
                     row += "M"
+
+                elif pos in map_state.get("ruins", []):
+                    row += "R"
+
+                elif pos in map_state.get("shrines", []):
+                    row += "S"
+
                 else:
                     row += "."
+                    
             print(row)
 
         move = input("Move (w/a/s/d, q to quit): ")
@@ -212,54 +229,68 @@ def run_map(game_state):
         if direction:
             result = move_player(game_state, direction)
 
+            if result == "returned_to_town":
+                return "town"
 
-            if result == "moved":
-                 player_pos = tuple(game_state["player_pos"])
+            player_pos = tuple(game_state["player_pos"])
+            encountered = False  
 
-                 for monster in state["monsters"]:
-                    if (monster.x, monster.y) == player_pos:
-                        print(f"\nYou encountered a {monster.monster_type}!")
+            for monster in state["monsters"]:
+                if (monster.x, monster.y) == player_pos:
+                    print(f"\nYou encountered a {monster.monster_type}!")
 
-                        state["player_hp"] -= 5
-                        monster.hp -= 10
+                    state["player_hp"], state["player_gold"] = fight_monster(
+                        state["player_hp"],
+                        state["player_gold"],
+                        monster
+                    )
 
-                        if monster.hp <= 0:
-                            print("Monster defeated!")
-                            state["monsters"].remove(monster)
-                        return
-                
-                 occupied = [tuple(game_state["player_pos"])]
+                    if state["player_hp"] <= 0:
+                        print("You were defeated!")
+                        return "town"
 
-                 for m in state["monsters"]:
+                    if monster.hp <= 0:
+                        print("Monster defeated!")
+                        state["monsters"].remove(monster)
+
+                    encountered = True
+                    break
+
+            if not encountered:
+                occupied = [tuple(game_state["player_pos"])]
+
+                for m in state["monsters"]:
                     occupied.append((m.x, m.y))
 
-                 for monster in state["monsters"]:
-                    monster.move(
+                for m in state["monsters"]:
+                    m.move(
                         occupied,
                         [tuple(game_state["town_pos"])],
                         10,
                         10
                     )
 
-                 player_pos = tuple(game_state["player_pos"])
+                player_pos = tuple(game_state["player_pos"])
 
-                 for monster in state["monsters"]:
-                    if (monster.x, monster.y) == player_pos:
-                        print(f"\nYou encountered a {monster.monster_type}!")
+                if player_pos in map_state.get("shrines", []):
+                    print("\nYou discovered a mysterious shrine...")
 
+                    effect = random.randint(1, 3)
+
+                    if effect == 1:
+                        state["player_hp"] += 10
+                        print("The shrine heals you for 10 HP!")
+
+                    elif effect == 2:
+                        state["player_gold"] += 20
+                        print("You find 20 gold at the shrine!")
+
+                    elif effect == 3:
                         state["player_hp"] -= 5
+                        print("A cursed energy drains 5 HP!")
 
-                        monster.hp -= 10
-
-                        if monster.hp <= 0:
-                            print("Monster defeated!")
-                            state["monsters"].remove(monster)
-
-                        break
-
-            if result == "returned_to_town":
-                return "town"
-
+                    map_state["shrines"].remove(player_pos)
+                    
 def save_game(filename):
     """Saves current game state to a file."""
 
@@ -361,23 +392,6 @@ def main():
 
 
             player_pos = tuple(map_state["player_pos"])
-
-            for monster in state["monsters"]:
-                if (monster.x, monster.y) == player_pos:
-                    print(f"\nYou encountered a {monster.monster_type}!")
-
-                    state["player_hp"] -= 5
-                    if state["player_hp"] <= 0:
-                        print("You were defeated by the monster!")
-                        return
-
-                    monster.hp -= 10
-
-                    if monster.hp <= 0:
-                        print("Monster defeated!")
-                        state["monsters"].remove(monster)
-
-                    break
 
                 
             if len(state["monsters"]) == 0:

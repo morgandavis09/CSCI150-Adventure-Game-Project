@@ -1,14 +1,17 @@
 import random
+import gamefunctions
 
 
 class WanderingMonster:
 
-    def __init__(self, x, y, monster_type, color, hp):
+    def __init__(self, x, y, monster_type, color, hp, power=3, money=10):
         self.x = x
         self.y = y
         self.monster_type = monster_type
         self.color = color
         self.hp = hp
+        self.power = power       
+        self.money = money
 
     def to_dict(self):
         return {
@@ -16,7 +19,9 @@ class WanderingMonster:
             "y": self.y,
             "monster_type": self.monster_type,
             "color": list(self.color),
-            "hp": self.hp
+            "hp": self.hp,
+            "power": self.power,
+            "money": self.money
         }
     
     @classmethod
@@ -26,7 +31,9 @@ class WanderingMonster:
         monster_type = data["monster_type"]
         color = tuple(data["color"])
         hp = data["hp"]
-
+        power = data.get("power", 3)
+        money = data.get("money", 10)
+        
         return cls(x, y, monster_type, color, hp)
     
     @staticmethod
@@ -37,8 +44,26 @@ class WanderingMonster:
             y = random.randint(0, grid_h - 1)
 
             if (x, y) not in occupied and (x, y) not in forbidden:
-                return WanderingMonster(x, y, "Goblin", (0, 255, 0), 10)
+                monster_data = gamefunctions.new_random_monster()
 
+                if monster_data["name"] == "Werewolf":
+                    color = (100, 100, 100)
+                elif monster_data["name"] == "Vampire":
+                    color = (150, 0, 150)
+                elif monster_data["name"] == "Dragon":
+                    color = (255, 0, 0)
+                else:
+                    color = (255, 255, 255)
+
+                return WanderingMonster(
+                    x,
+                    y,
+                    monster_data["name"],
+                    color,
+                    monster_data["health"],
+                    monster_data["power"],
+                    monster_data["money"]
+                )
     def move(self, occupied, forbidden, grid_w, grid_h):
 
         directions = [
